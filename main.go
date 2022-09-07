@@ -64,7 +64,7 @@ func upload(course string, cal string) {
 }
 
 func handleRequest() (string, error) {
-	err := godotenv.Load(".env")
+	err := godotenv.Load("env")
 	if err != nil {
 		log.Fatal("couldn't load .env", err)
 	}
