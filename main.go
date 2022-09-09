@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"html/template"
 	"log"
 	"net/http"
 	"os"
@@ -20,6 +21,19 @@ import (
 )
 
 var uploader *s3manager.Uploader
+
+type IndexCal struct {
+	Name    string
+	Events  int
+	Updated time.Time
+	URL     string
+}
+
+type TemplateData struct {
+	IndexCals []IndexCal
+}
+
+var data TemplateData
 
 func GetCourseNames(cal *ics.Calendar) []string {
 	var names []string
@@ -49,11 +63,11 @@ func GetUploader() *s3manager.Uploader {
 	return s3manager.NewUploader(session)
 }
 
-func upload(course string, cal string) {
+func upload(key string, data string) {
 	upInput := &s3manager.UploadInput{
 		Bucket: aws.String(os.Getenv("BUCKET_NAME")),
-		Key:    aws.String("cal-" + course + ".ics"),
-		Body:   bytes.NewReader([]byte(cal)),
+		Key:    aws.String(key),
+		Body:   bytes.NewReader([]byte(data)),
 		ACL:    aws.String("public-read"),
 	}
 	res, err := uploader.UploadWithContext(context.Background(), upInput)
@@ -97,12 +111,28 @@ func handleRequest() (string, error) {
 				newcal.AddVEvent(v)
 			}
 		}
-		log.Println(course, len(newcal.Events()))
+		log.Println(course)
 		newcal.SetXWRCalName(course)
 		newcal.SetName(course)
 		newcal.SetProductId("d2l-ics-proxy")
-		upload(course, newcal.Serialize())
+
+		d := IndexCal{
+			Name:    course,
+			Events:  len(newcal.Events()),
+			Updated: time.Now(),
+			URL:     os.Getenv("PROXY_URL") + "cal-" + course + ".ics",
+		}
+
+		data.IndexCals = append(data.IndexCals, d)
+
+		upload("cal-"+course+".ics", newcal.Serialize())
 	}
+
+	tmpl := template.Must(template.ParseFiles("index.html"))
+	buffer := new(bytes.Buffer)
+	tmpl.Execute(buffer, data)
+	upload("index.html", buffer.String())
+
 	return "sucessfully uploaded ics files to s3", nil
 }
 
