@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	ics "github.com/arran4/golang-ical"
@@ -63,12 +64,16 @@ func GetUploader() *s3manager.Uploader {
 
 func upload(key string, data string) {
 	upInput := &s3manager.UploadInput{
-		Bucket:      aws.String(os.Getenv("BUCKET_NAME")),
-		Key:         aws.String(key),
-		Body:        bytes.NewReader([]byte(data)),
-		ACL:         aws.String("public-read"),
-		ContentType: aws.String("html"),
+		Bucket: aws.String(os.Getenv("BUCKET_NAME")),
+		Key:    aws.String(key),
+		Body:   bytes.NewReader([]byte(data)),
+		ACL:    aws.String("public-read"),
 	}
+
+	if strings.Contains(key, "html") {
+		upInput.ContentType = aws.String("html")
+	}
+
 	res, err := uploader.UploadWithContext(context.Background(), upInput)
 	if err != nil {
 		log.Fatal("error uploading file to s3 bucket", err)
