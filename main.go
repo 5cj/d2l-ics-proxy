@@ -33,8 +33,6 @@ type TemplateData struct {
 	IndexCals []IndexCal
 }
 
-var data TemplateData
-
 func GetCourseNames(cal *ics.Calendar) []string {
 	var names []string
 	for _, v := range cal.Events() {
@@ -65,10 +63,11 @@ func GetUploader() *s3manager.Uploader {
 
 func upload(key string, data string) {
 	upInput := &s3manager.UploadInput{
-		Bucket: aws.String(os.Getenv("BUCKET_NAME")),
-		Key:    aws.String(key),
-		Body:   bytes.NewReader([]byte(data)),
-		ACL:    aws.String("public-read"),
+		Bucket:      aws.String(os.Getenv("BUCKET_NAME")),
+		Key:         aws.String(key),
+		Body:        bytes.NewReader([]byte(data)),
+		ACL:         aws.String("public-read"),
+		ContentType: aws.String("html"),
 	}
 	res, err := uploader.UploadWithContext(context.Background(), upInput)
 	if err != nil {
@@ -97,6 +96,8 @@ func handleRequest() (string, error) {
 
 	courses := GetCourseNames(cal)
 	log.Println("found unique course calendars: ", len(courses))
+
+	data := TemplateData{}
 
 	for _, course := range courses {
 		newcal := ics.NewCalendar()
